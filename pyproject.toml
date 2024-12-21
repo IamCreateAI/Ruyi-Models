@@ -1,0 +1,15 @@
+[project]
+name = "ruyi-models"
+description = "ComfyUI wrapper nodes for Ruyi, an image-to-video model by CreateAI."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["Pillow", "einops", "safetensors", "timm", "tomesd", "torch", "torchdiffeq", "torchsde", "decord", "datasets", "numpy", "scikit-image", "opencv-python", "omegaconf", "SentencePiece", "albumentations", "imageio[ffmpeg]", "imageio[pyav]", "tensorboard", "beautifulsoup4", "ftfy", "func_timeout", "huggingface_hub", "accelerate>=0.26.0", "diffusers>=0.28.2", "transformers>=4.37.2"]
+
+[project.urls]
+Repository = "https://github.com/IamCreateAI/Ruyi-Models"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "Ruyi-Models"
+Icon = ""
