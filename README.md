@@ -1,3 +1,8 @@
+**New**:
+FP8 added for ComfyUI node.
+   GPU memory decreases depending on the modes: bf16 default > fp8 lite > fp8 strong  > fp8 extreme
+  
+-----------------
 # Ruyi-Models
 
 English | [简体中文](./README_CN.md)

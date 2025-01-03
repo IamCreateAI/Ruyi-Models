@@ -51,7 +51,16 @@ class Ruyi_LoadModel:
                     {
                         "default": "yes"
                     }
-                )
+                ),
+
+                "fp8_quant_mode": (
+                    [ "none", "lite", "strong", "extreme"],
+                    { "default": "none", "tooltip": 'Mode "extreme" is not recommended for good quality'}
+                ),
+                "fp8_data_type": (
+                    [ "auto", "fp8_e4m3fn", "fp8_e5m2"],
+                    { "default": "auto"}
+                ),
             },
         }
 
@@ -70,7 +79,7 @@ class Ruyi_LoadModel:
     def try_setup_pipeline(self, model_path, weight_dtype, config):
         try:
             # Init processbar
-            pbar = ProgressBar(5)
+            pbar = ProgressBar(6)
 
             # Get Vae
             vae = AutoencoderKLMagvit.from_pretrained(
@@ -87,6 +96,31 @@ class Ruyi_LoadModel:
                 subfolder="transformer",
                 transformer_additional_kwargs=transformer_additional_kwargs
             ).to(weight_dtype)
+            # Update pbar
+            pbar.update(1)
+
+            if self.fp8_quant_mode != 'none':
+                count_f8 =0
+                fp8_type = torch.float8_e5m2 if self.fp8_data_type == 'fp8_e5m2' else torch.float8_e4m3fn
+                if self.fp8_quant_mode != 'extreme':
+
+                    shape_size = 2816 ** 2
+                    if self.fp8_quant_mode == 'strong': shape_size -= 1
+
+                    for module in transformer.modules():
+                        if module.__class__.__name__ in ["Linear"]:
+                            x,y = module.weight.shape
+                            if x * y > shape_size:
+                                module.to(fp8_type)
+                                count_f8 += 1
+                else:
+                    for module in transformer.modules():
+                        if len(list(module.modules())) > 1: continue
+                        elif module.__class__.__name__ not in ["Embedding"]:
+                            module.to(fp8_type)
+                            count_f8 += 1
+
+                print (f'FP8: {count_f8} layers converted to {fp8_type}')
             # Update pbar
             pbar.update(1)
 
@@ -126,8 +160,11 @@ class Ruyi_LoadModel:
         except Exception as e:
             print("[Ruyi] Setup pipeline failed:", e)
             return None
+    
+    def load_model(self, model, auto_download, auto_update, fp8_quant_mode='none', fp8_data_type='auto'):
+        self.fp8_quant_mode = fp8_quant_mode
+        self.fp8_data_type = fp8_data_type
 
-    def load_model(self, model, auto_download, auto_update):
         # Init weight_dtype and device
         device          = mm.get_torch_device()
         offload_device  = mm.unet_offload_device()
@@ -388,7 +425,7 @@ class Ruyi_I2VSampler:
         embeddings = self.get_control_embeddings(pipeline, aspect_ratio, motion, camera_direction)
 
         # Inference
-        with torch.no_grad():
+        with torch.no_grad(), torch.autocast(str(device), dtype = pipeline.transformer.dtype):
             video_length = int(video_length // pipeline.vae.mini_batch_encoder * pipeline.vae.mini_batch_encoder) if video_length != 1 else 1
             input_video, input_video_mask, clip_image = get_image_to_video_latent(start_img, end_img, video_length=video_length, sample_size=(height, width))
 
